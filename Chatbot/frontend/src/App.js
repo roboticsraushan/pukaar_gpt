@@ -14,8 +14,11 @@ function App() {
     setErrorMsg('');
     setScreeningResult(null);
 
+    // Use Docker service name in container, fallback to localhost for development
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://34.131.151.166:5000';
+    
     try {
-      const response = await fetch('http://34.44.243.178:5000/api/triage', {
+      const response = await fetch(`${apiUrl}/api/triage`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -39,7 +42,7 @@ function App() {
 
   return (
     <div className="App" style={{ padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
-      <h1 style={{ color: '#2b7a78' }}>ðŸ‘Pukaar Health Screening</h1>
+      <h1 style={{ color: '#2b7a78' }}>ï¿½Pukaar Health Screening</h1>
       <p style={{ fontStyle: 'italic', color: '#444' }}>
         This is not a medical diagnosis. It is a screening tool based on WHO, IMNCI, and IAP guidelines to help identify potential warning signs. Please consult a pediatrician if unsure.
       </p>
