@@ -1,6 +1,89 @@
 import React, { useState } from 'react';
 import './App.css';
 
+// Tree View Component for JSON display
+const JsonTreeView = ({ data, level = 0 }) => {
+  const [expanded, setExpanded] = useState(level < 2); // Auto-expand first 2 levels
+  
+  if (typeof data === 'object' && data !== null) {
+    const isArray = Array.isArray(data);
+    const items = isArray ? data : Object.entries(data);
+    
+    return (
+      <div style={{ marginLeft: level * 20 }}>
+        <div 
+          style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            color: '#2b7a78'
+          }}
+          onClick={() => setExpanded(!expanded)}
+        >
+          <span style={{ marginRight: '8px', fontSize: '14px' }}>
+            {expanded ? '▼' : '▶'}
+          </span>
+          <span style={{ color: isArray ? '#d63384' : '#0d6efd' }}>
+            {isArray ? '[' : '{'}
+          </span>
+        </div>
+        
+        {expanded && (
+          <div style={{ marginLeft: '20px' }}>
+            {items.map((item, index) => {
+              const key = isArray ? index : item[0];
+              const value = isArray ? item : item[1];
+              const isLast = index === items.length - 1;
+              
+              return (
+                <div key={index}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                    <span style={{ color: '#6c757d', marginRight: '8px' }}>
+                      "{key}":
+                    </span>
+                    {typeof value === 'object' && value !== null ? (
+                      <JsonTreeView data={value} level={level + 1} />
+                    ) : (
+                      <span style={{ 
+                        color: typeof value === 'string' ? '#198754' : 
+                               typeof value === 'number' ? '#fd7e14' : 
+                               typeof value === 'boolean' ? '#6f42c1' : '#6c757d'
+                      }}>
+                        {typeof value === 'string' ? `"${value}"` : String(value)}
+                      </span>
+                    )}
+                    {!isLast && <span style={{ color: '#6c757d' }}>,</span>}
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{ color: isArray ? '#d63384' : '#0d6efd' }}>
+              {isArray ? ']' : '}'}
+            </div>
+          </div>
+        )}
+        
+        {!expanded && (
+          <span style={{ color: '#6c757d', marginLeft: '8px' }}>
+            ...
+          </span>
+        )}
+      </div>
+    );
+  }
+  
+  return (
+    <span style={{ 
+      color: typeof data === 'string' ? '#198754' : 
+             typeof data === 'number' ? '#fd7e14' : 
+             typeof data === 'boolean' ? '#6f42c1' : '#6c757d'
+    }}>
+      {typeof data === 'string' ? `"${data}"` : String(data)}
+    </span>
+  );
+};
+
 function App() {
   const [inputText, setInputText] = useState('');
   const [screeningResult, setScreeningResult] = useState(null);
@@ -28,7 +111,19 @@ function App() {
 
       const data = await response.json();
       if (response.ok) {
-        setScreeningResult(data);
+        // Handle the response structure where result is a JSON string
+        if (data.result) {
+          try {
+            // Parse the result string back to JSON object
+            const parsedResult = JSON.parse(data.result);
+            setScreeningResult(parsedResult);
+          } catch (parseError) {
+            console.error('Error parsing result:', parseError);
+            setScreeningResult(data.result); // Fallback to raw string
+          }
+        } else {
+          setScreeningResult(data);
+        }
       } else {
         setErrorMsg(data.error || 'Something went wrong.');
       }
@@ -42,7 +137,7 @@ function App() {
 
   return (
     <div className="App" style={{ padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
-      <h1 style={{ color: '#2b7a78' }}>�Pukaar Health Screening</h1>
+      <h1 style={{ color: '#2b7a78' }}>🧒 Pukaar Health Screening</h1>
       <p style={{ fontStyle: 'italic', color: '#444' }}>
         This is not a medical diagnosis. It is a screening tool based on WHO, IMNCI, and IAP guidelines to help identify potential warning signs. Please consult a pediatrician if unsure.
       </p>
@@ -98,26 +193,59 @@ function App() {
           {screeningResult.screenable === false ? (
             <p style={{ color: '#d9534f' }}>{screeningResult.response}</p>
           ) : (
-            <ul>
-              {screeningResult.ranked_list?.map((item, index) => (
-                <li key={index}>
-                  <strong>{item.condition}:</strong> {item.likelihood}%
-                </li>
-              ))}
-            </ul>
+            <div>
+              {/* Display condition scores */}
+              {Object.entries(screeningResult)
+                .filter(([key]) => 
+                  key !== "screenable" && 
+                  key !== "response" && 
+                  key !== "other_issue_detected" &&
+                  typeof screeningResult[key] === 'number'
+                )
+                .sort(([, a], [, b]) => b - a)
+                .map(([condition, score], index) => (
+                  <div key={index} style={{ marginBottom: '10px' }}>
+                    <strong style={{ textTransform: 'capitalize' }}>
+                      {condition.replace(/_/g, ' ')}:
+                    </strong> {score}%
+                  </div>
+                ))
+              }
+              
+              {/* Display response if available */}
+              {screeningResult.response && (
+                <div style={{ 
+                  marginTop: '15px', 
+                  padding: '10px', 
+                  backgroundColor: '#e7f3ff', 
+                  borderRadius: '5px',
+                  borderLeft: '4px solid #007bff'
+                }}>
+                  <strong>Explanation:</strong> {screeningResult.response}
+                </div>
+              )}
+            </div>
           )}
 
-          <pre
+          <div
             style={{
               marginTop: '1rem',
-              backgroundColor: '#eee',
+              backgroundColor: '#f8f9fa',
               padding: '1rem',
               borderRadius: '6px',
-              overflowX: 'auto',
+              border: '1px solid #dee2e6',
+              fontFamily: 'monospace',
+              fontSize: '13px',
+              lineHeight: '1.5',
+              maxHeight: '400px',
+              overflowY: 'auto'
             }}
           >
-{JSON.stringify(screeningResult, null, 2)}
-          </pre>
+            <div style={{ marginBottom: '10px', fontWeight: 'bold', color: '#495057' }}>
+              📊 Detailed Results (Click to expand/collapse):
+            </div>
+            <JsonTreeView data={screeningResult} />
+          </div>
         </div>
       )}
     </div>
