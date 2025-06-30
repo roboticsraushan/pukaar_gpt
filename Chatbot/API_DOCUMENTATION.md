@@ -2,12 +2,12 @@
 
 ## Base URL : Backend
 ```
-http://34.93.77.120:5000
+http://34.47.240.92:5000
 ```
 
 ## Base URL : Frontend (if you want to test yourself)
 ```
-http://34.93.77.120:3000
+http://34.47.240.92:3000
 ```
 
 ## API Endpoints
@@ -158,7 +158,7 @@ Content-Type: application/json
 
 #### 1. Test Health Screening
 ```bash
-curl -X POST http://34.93.77.120:5000/api/triage \
+curl -X POST http://34.47.240.92:5000/api/triage \
   -H "Content-Type: application/json" \
   -d '{
     "message": "My baby has fast breathing and yellow skin"
@@ -167,7 +167,7 @@ curl -X POST http://34.93.77.120:5000/api/triage \
 
 #### 2. Test Red Flag Detection
 ```bash
-curl -X POST http://34.93.77.120:5000/api/red-flag \
+curl -X POST http://34.47.240.92:5000/api/red-flag \
   -H "Content-Type: application/json" \
   -d '{
     "message": "My baby is not breathing and has blue lips"
@@ -176,7 +176,7 @@ curl -X POST http://34.93.77.120:5000/api/red-flag \
 
 #### 3. Test Context Classification
 ```bash
-curl -X POST http://34.93.77.120:5000/api/context-classifier \
+curl -X POST http://34.47.240.92:5000/api/context-classifier \
   -H "Content-Type: application/json" \
   -d '{
     "message": "My baby has a cough and fast breathing"
@@ -185,7 +185,7 @@ curl -X POST http://34.93.77.120:5000/api/context-classifier \
 
 #### 4. Test Run Screening
 ```bash
-curl -X POST http://34.93.77.120:5000/api/screening/pneumonia_ari/run \
+curl -X POST http://34.47.240.92:5000/api/screening/pneumonia_ari/run \
   -H "Content-Type: application/json" \
   -d '{
     "responses": ["yes", "no", "yes", "yes", "65", "yes", "yes"]
@@ -194,7 +194,7 @@ curl -X POST http://34.93.77.120:5000/api/screening/pneumonia_ari/run \
 
 #### 5. Test Consult Advice
 ```bash
-curl -X POST http://34.93.77.120:5000/api/consult-advice \
+curl -X POST http://34.47.240.92:5000/api/consult-advice \
   -H "Content-Type: application/json" \
   -d '{
     "message": "My baby won't sleep through the night"

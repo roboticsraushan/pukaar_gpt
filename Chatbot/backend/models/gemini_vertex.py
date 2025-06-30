@@ -1,12 +1,22 @@
 from vertexai.generative_models import GenerativeModel
 import vertexai
+import google.auth
 
 PROJECT_ID = "pkr-prod-in-core"
-LOCATION = "asia-south2-b"
+LOCATION = "us-central1"
 
-vertexai.init(project=PROJECT_ID, location=LOCATION)
+vertexai.init(
+    project=PROJECT_ID,
+    location=LOCATION,
+    credentials=google.auth.default(
+        scopes=[
+            "https://www.googleapis.com/auth/cloud-platform",
+            "https://www.googleapis.com/auth/aiplatform"
+        ]
+    )[0]
+)
 
-model = GenerativeModel("gemini-2.0-flash-001")
+model = GenerativeModel("gemini-1.5-pro-001")
 
 # Initial system prompt manually added to history
 TRIAGE_CONTEXT = """
