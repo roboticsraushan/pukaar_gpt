@@ -23,5 +23,5 @@ services:
     depends_on:
       - backend
     environment:
-      - REACT_APP_API_URL=http://34.131.162.187:5000
+      - REACT_APP_API_URL=http://34.93.77.120:5000
     restart: unless-stopped 
