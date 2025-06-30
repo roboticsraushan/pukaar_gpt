@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Pukaar-GPT Local Development Run Script
-# This script runs the local Docker Compose setup
+# This script runs the local Docker Compose setup with incremental builds
 
 set -e  # Exit on any error
 
@@ -58,14 +58,14 @@ if ! grep -q "GOOGLE_API_KEY=" .env || grep -q "your-google-api-key-here" .env; 
     exit 1
 fi
 
-# Stop existing containers
-print_status "Stopping existing containers..."
-docker-compose -f docker-compose.local.yml down --remove-orphans
+# Stop only local containers (using project name to avoid conflicts)
+print_status "Stopping local development containers..."
+docker-compose -f docker-compose.local.yml -p pukaar-local down
 
-# Build and start containers
+# Build containers with incremental builds (no --no-cache for faster builds)
 print_status "Building and starting local development containers..."
-docker-compose -f docker-compose.local.yml build --no-cache
-docker-compose -f docker-compose.local.yml up -d
+docker-compose -f docker-compose.local.yml -p pukaar-local build
+docker-compose -f docker-compose.local.yml -p pukaar-local up -d
 
 # Wait for containers to be ready
 print_status "Waiting for containers to be ready..."
@@ -73,11 +73,11 @@ sleep 10
 
 # Check if containers are running
 print_status "Checking container status..."
-if docker-compose -f docker-compose.local.yml ps | grep -q "Up"; then
+if docker-compose -f docker-compose.local.yml -p pukaar-local ps | grep -q "Up"; then
     print_success "All local development containers are running!"
 else
     print_error "Some containers failed to start!"
-    docker-compose -f docker-compose.local.yml logs
+    docker-compose -f docker-compose.local.yml -p pukaar-local logs
     exit 1
 fi
 
@@ -89,5 +89,7 @@ echo "🌐 Frontend: http://localhost:3000"
 echo "🔧 Backend API: http://localhost:5000"
 echo "📚 API Documentation: http://localhost:5000/api-doc"
 echo ""
-print_status "To view logs: docker-compose -f docker-compose.local.yml logs -f"
-print_status "To stop services: docker-compose -f docker-compose.local.yml down" 
+print_status "To view logs: docker-compose -f docker-compose.local.yml -p pukaar-local logs -f"
+print_status "To stop services: docker-compose -f docker-compose.local.yml -p pukaar-local down"
+print_status "Note: This will only stop local containers, production containers remain unaffected"
+print_status "For full rebuild: docker-compose -f docker-compose.local.yml -p pukaar-local build --no-cache" 

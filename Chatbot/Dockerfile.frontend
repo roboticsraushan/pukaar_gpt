@@ -1,17 +1,33 @@
+# Build stage
 FROM node:18-alpine as build
 
 WORKDIR /app
 
+# Copy package files first (this layer is cached unless package.json changes)
 COPY frontend/package*.json ./
-RUN npm ci
 
-COPY frontend/ ./
+# Install dependencies (cached unless package.json changes)
+RUN npm ci --only=production
+
+# Copy source code (this layer is rebuilt only when source changes)
+COPY frontend/src/ ./src/
+COPY frontend/public/ ./public/
+COPY frontend/package.json ./
+
+# Build the application (cached unless source or dependencies change)
 RUN npm run build
 
-# Serve with a simple static server
+# Production stage
 FROM node:18-alpine
+
 WORKDIR /app
+
+# Install serve globally (this layer is cached)
 RUN npm install -g serve
+
+# Copy built application from build stage
 COPY --from=build /app/build ./build
+
 EXPOSE 3000
+
 CMD ["serve", "-s", "build", "-l", "3000"] 

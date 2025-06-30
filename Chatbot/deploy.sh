@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Pukaar-GPT Production Run Script
-# This script runs the production Docker Compose setup with incremental builds
+# Pukaar-GPT Deployment Script
+# This script deploys both frontend and backend with proper configuration
 
 set -e  # Exit on any error
 
-echo "🚀 Starting Pukaar-GPT Production Environment..."
-echo "================================================"
+echo "🚀 Starting Pukaar-GPT Deployment..."
+echo "=================================="
 
 # Colors for output
 RED='\033[0;31m'
@@ -60,12 +60,12 @@ fi
 
 # Stop existing containers
 print_status "Stopping existing containers..."
-docker-compose -f docker-compose.prod.yml down --remove-orphans
+docker-compose down --remove-orphans
 
-# Build containers with incremental builds (no --no-cache for faster builds)
-print_status "Building and starting production containers..."
-docker-compose -f docker-compose.prod.yml build
-docker-compose -f docker-compose.prod.yml up -d
+# Build and start containers
+print_status "Building and starting containers..."
+docker-compose build --no-cache
+docker-compose up -d
 
 # Wait for containers to be ready
 print_status "Waiting for containers to be ready..."
@@ -73,22 +73,43 @@ sleep 10
 
 # Check if containers are running
 print_status "Checking container status..."
-if docker-compose -f docker-compose.prod.yml ps | grep -q "Up"; then
-    print_success "All production containers are running!"
+if docker-compose ps | grep -q "Up"; then
+    print_success "All containers are running!"
 else
     print_error "Some containers failed to start!"
-    docker-compose -f docker-compose.prod.yml logs
+    docker-compose logs
+    exit 1
+fi
+
+# Test backend API
+print_status "Testing backend API..."
+if curl -s -X POST http://localhost:5000/api/triage \
+    -H "Content-Type: application/json" \
+    -d '{"message": "test"}' > /dev/null; then
+    print_success "Backend API is responding!"
+else
+    print_error "Backend API is not responding!"
+    docker-compose logs backend
+    exit 1
+fi
+
+# Test frontend
+print_status "Testing frontend..."
+if curl -s http://localhost:3000 > /dev/null; then
+    print_success "Frontend is accessible!"
+else
+    print_error "Frontend is not accessible!"
+    docker-compose logs frontend
     exit 1
 fi
 
 # Display service URLs
 echo ""
-print_success "Production environment started successfully!"
-echo "================================================"
+print_success "Deployment completed successfully!"
+echo "=================================="
 echo "🌐 Frontend: http://34.47.240.92:3000"
 echo "🔧 Backend API: http://34.47.240.92:5000"
 echo "📚 API Documentation: http://34.47.240.92:5000/api-doc"
 echo ""
-print_status "To view logs: docker-compose -f docker-compose.prod.yml logs -f"
-print_status "To stop services: docker-compose -f docker-compose.prod.yml down"
-print_status "For full rebuild: docker-compose -f docker-compose.prod.yml build --no-cache" 
+print_status "To view logs: docker-compose logs -f"
+print_status "To stop services: docker-compose down" 

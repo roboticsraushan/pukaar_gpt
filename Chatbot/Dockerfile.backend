@@ -3,26 +3,37 @@ FROM python:3.9-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (this layer rarely changes)
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Copy requirements first for better caching
+# This layer will be cached unless requirements change
 COPY backend/req.txt .
 
-# Install dependencies including markdown
+# Install Python dependencies (cached unless req.txt changes)
 RUN pip install --no-cache-dir -r req.txt
 
-# Copy the rest of the application
-COPY backend/ .
+# Copy the main application file
+COPY backend/app.py .
 
-# Create templates directory and copy template
+# Copy the models directory (contains AI model integrations)
+COPY backend/models/ ./models/
+
+# Copy the routes directory (contains API endpoints)
+COPY backend/routes/ ./routes/
+
+# Copy the functions directory (contains utility functions)
+COPY backend/functions/ ./functions/
+
+# Create templates directory and copy template (cached unless templates change)
 RUN mkdir -p templates
 COPY backend/templates/ templates/
 
-# Copy the API documentation markdown file
+# Copy the API documentation markdown file (cached unless docs change)
 COPY API_DOCUMENTATION.md .
 
 # Expose port
