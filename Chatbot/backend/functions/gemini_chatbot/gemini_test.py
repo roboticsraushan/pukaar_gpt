@@ -1,7 +1,7 @@
 from vertexai.generative_models import GenerativeModel
 import vertexai
 
-vertexai.init(project="pkr-gpt-prod", location="asia-south1-a")
+vertexai.init(project="pkr-prod-in-core", location="asia-south1-a ")
 
 model = GenerativeModel("gemini-2.0-flash-001")  # Or another name you found
 
