@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models.gemini_vertex import triage_with_gemini
+from models.gemini_direct import triage_with_gemini
 from models.red_flag_model import detect_red_flags
 from models.screening_model import run_screening
 from models.context_classifier import classify_context
