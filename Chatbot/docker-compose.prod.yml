@@ -8,14 +8,12 @@ services:
     ports:
       - "5000:5000"
     working_dir: /app
+    env_file:
+      - .env
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=production
     restart: unless-stopped
-    volumes:
-      - ~/.config/gcloud:/root/.config/gcloud
-    environment:
-      - GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json
 
   frontend:
     build:
@@ -26,6 +24,8 @@ services:
       - "3000:3000"
     depends_on:
       - backend
+    env_file:
+      - .env
     environment:
       - REACT_APP_API_URL=http://34.47.240.92:5000
     restart: unless-stopped 
