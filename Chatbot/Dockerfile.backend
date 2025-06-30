@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.9-slim
 
 # Set working directory
 WORKDIR /app
@@ -12,11 +12,18 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements first for better caching
 COPY backend/req.txt .
 
-# Install Python dependencies
+# Install dependencies including markdown
 RUN pip install --no-cache-dir -r req.txt
 
-# Copy backend source code
+# Copy the rest of the application
 COPY backend/ .
+
+# Create templates directory and copy template
+RUN mkdir -p templates
+COPY backend/templates/ templates/
+
+# Copy the API documentation markdown file
+COPY API_DOCUMENTATION.md .
 
 # Expose port
 EXPOSE 5000
