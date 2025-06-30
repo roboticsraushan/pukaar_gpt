@@ -1,7 +1,4 @@
-Flask
-flask-cors
-#May be I do not want to install
-#google-generativeai
-google-cloud-aiplatform
-
-
+flask==2.3.3
+flask-cors==4.0.0
+google-cloud-aiplatform==1.38.1
+markdown==3.5.1 
