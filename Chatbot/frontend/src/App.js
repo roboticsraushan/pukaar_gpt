@@ -98,7 +98,7 @@ function App() {
     setScreeningResult(null);
 
     // Use Docker service name in container, fallback to localhost for development
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://34.131.151.166:5000';
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://34.131.162.187:5000';
     
     try {
       const response = await fetch(`${apiUrl}/api/triage`, {

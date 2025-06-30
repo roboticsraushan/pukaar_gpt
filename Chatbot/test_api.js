@@ -1,7 +1,7 @@
 // API Test Script for Frontend Developer
 // Run this with Node.js: node test_api.js
 
-const API_BASE_URL = 'http://34.131.151.166:5000';
+const API_BASE_URL = 'http://34.131.162.187:5000';
 
 // Test data
 const testCases = [
