@@ -16,7 +16,7 @@ distro-info==1.5+deb12u1
 docstring_parser==0.16
 google-api-core==2.25.0
 google-auth==2.40.3
-google-cloud-aiplatform==1.97.0
+google-cloud-aiplatform>=1.38.1
 google-cloud-bigquery==3.34.0
 google-cloud-core==2.4.3
 google-cloud-resource-manager==1.14.2
