@@ -85,6 +85,7 @@ const JsonTreeView = ({ data, level = 0 }) => {
 };
 
 function App() {
+  console.log('App component loaded');
   const [inputText, setInputText] = useState('');
   const [screeningResult, setScreeningResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -98,9 +99,12 @@ function App() {
     setScreeningResult(null);
 
     // Use Docker service name in container, fallback to localhost for development
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://34.131.162.187:5000';
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    console.log('API URL:', apiUrl);
+    console.log('Sending message:', inputText);
     
     try {
+      console.log('Making fetch request to:', `${apiUrl}/api/triage`);
       const response = await fetch(`${apiUrl}/api/triage`, {
         method: 'POST',
         headers: {
@@ -109,14 +113,18 @@ function App() {
         body: JSON.stringify({ message: inputText }),
       });
 
+      console.log('Raw response:', response);
       const data = await response.json();
+      console.log('Parsed response JSON:', data);
       if (response.ok) {
         // Handle the response structure where result is a JSON string
         if (data.result) {
           try {
             // Parse the result string back to JSON object
+            console.log('Trying to parse data.result:', data.result);
             const parsedResult = JSON.parse(data.result);
             setScreeningResult(parsedResult);
+            console.log('Parsed result object:', parsedResult);
           } catch (parseError) {
             console.error('Error parsing result:', parseError);
             setScreeningResult(data.result); // Fallback to raw string
@@ -159,7 +167,10 @@ function App() {
       />
 
       <button
-        onClick={handleSubmit}
+        onClick={() => {
+          console.log('Button clicked!');
+          handleSubmit();
+        }}
         style={{
           backgroundColor: '#3aafa9',
           color: '#fff',
