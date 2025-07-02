@@ -98,8 +98,9 @@ class SessionManager:
         """Update session with new data"""
         session_data = SessionManager.get_session(session_id)
         if not session_data:
+            print(f"[DEBUG] update_session: No session found for {session_id}")
             return False
-            
+        
         # Update session data
         session_data.update(updates)
         session_data['last_active'] = time.time()
@@ -107,7 +108,10 @@ class SessionManager:
         # Ensure current_step is always present
         if 'current_step' not in session_data:
             session_data['current_step'] = 0
-            
+        
+        # Debug print for flow_type and current_step
+        print(f"[DEBUG] update_session: session_id={session_id}, flow_type={session_data.get('flow_type')}, current_step={session_data.get('current_step')}, updates={updates}")
+        
         if USE_REDIS:
             redis_client.setex(
                 f"session:{session_id}", 
@@ -116,7 +120,7 @@ class SessionManager:
             )
         else:
             in_memory_sessions[session_id] = session_data
-            
+        
         return True
 
     @staticmethod
@@ -170,8 +174,9 @@ class SessionManager:
     def set_flow_type(session_id: str, flow_type: str) -> bool:
         """Set the flow type for a session"""
         if flow_type not in FLOW_TYPES.values():
+            print(f"[DEBUG] set_flow_type: Invalid flow_type={flow_type} for session_id={session_id}")
             return False
-            
+        print(f"[DEBUG] set_flow_type: session_id={session_id}, new_flow_type={flow_type}")
         return SessionManager.update_session(
             session_id, 
             {'flow_type': flow_type, 'current_step': 0}
@@ -182,10 +187,12 @@ class SessionManager:
         """Advance to the next step in the current flow and return the new step number"""
         session_data = SessionManager.get_session(session_id)
         if not session_data:
+            print(f"[DEBUG] advance_step: No session found for {session_id}")
             return -1
-            
+        
         current_step = session_data.get('current_step', 0)
         new_step = current_step + 1
+        print(f"[DEBUG] advance_step: session_id={session_id}, advancing from {current_step} to {new_step}")
         
         success = SessionManager.update_session(
             session_id, 

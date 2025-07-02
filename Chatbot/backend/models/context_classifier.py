@@ -92,6 +92,32 @@ class ContextClassifier:
             if keyword in input_lower:
                 non_medical_matches.append(keyword)
         
+        # Check for follow-up keywords
+        follow_up_keywords = [
+            "follow up", "checkup", "come back", "not improved", "still sick", "after treatment",
+            "antibiotics", "medicine", "treatment", "persistent", "not better", "not resolved",
+            "not gone", "keeps happening", "did not improve", "symptoms remain", "after medication",
+            "after antibiotics", "not responding", "not working", "not effective"
+        ]
+        if any(kw in input_lower for kw in follow_up_keywords):
+            return {
+                "classified_context": "follow_up",
+                "reasoning": "Detected follow-up intent",
+                "confidence": "high"
+            }
+        
+        # Check for consult/advice keywords
+        consult_keywords = [
+            "should i", "is it safe", "can i give", "what should i do", "advice", "consult",
+            "is it ok", "is it okay", "can my child", "can i use"
+        ]
+        if any(kw in input_lower for kw in consult_keywords):
+            return {
+                "classified_context": "consult",
+                "reasoning": "Detected consult/advice intent",
+                "confidence": "high"
+            }
+        
         # Determine classification based on matches
         if screenable_matches:
             # If screenable conditions are mentioned, prioritize medical screening

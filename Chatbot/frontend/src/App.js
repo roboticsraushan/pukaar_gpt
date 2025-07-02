@@ -116,78 +116,43 @@ function App() {
 
     setLoading(true);
     setErrorMsg('');
-    
+
     // Add user message to conversation history
     const userMessage = { role: 'user', content: inputText };
     setConversationHistory(prev => [...prev, userMessage]);
 
     // Use Docker service name in container, fallback to localhost for development
     const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-    console.log('API URL:', apiUrl);
-    console.log('Sending message:', inputText);
-    
     try {
-      console.log('Making fetch request to:', `${apiUrl}/api/triage`);
-      const response = await fetch(`${apiUrl}/api/triage`, {
+      // Always use /api/screen for all messages
+      const response = await fetch(`${apiUrl}/api/screen`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
           message: inputText,
-          session_id: sessionId
+          session_id: sessionId // null/undefined for first message, set for follow-ups
         }),
       });
 
-      console.log('Raw response:', response);
       const data = await response.json();
-      console.log('Parsed response JSON:', data);
-      
       if (response.ok) {
-        // Save session ID if provided
-        if (data.session_id) {
-          setSessionId(data.session_id);
-        }
-        
-        // Extract flow type and current step if available
-        if (data.flow_type) {
-          setFlowType(data.flow_type);
-        }
-        
-        if (data.current_step) {
-          setCurrentStep(data.current_step);
-        }
-        
-        // Add system response to conversation history
+        if (data.session_id) setSessionId(data.session_id);
+        if (data.flow_type) setFlowType(data.flow_type);
+        if (data.current_step !== undefined) setCurrentStep(data.current_step);
         const systemResponse = { 
           role: 'system', 
           content: data.response || data.result || JSON.stringify(data)
         };
         setConversationHistory(prev => [...prev, systemResponse]);
-        
-        // Handle the response structure where result is a JSON string
-        if (data.result) {
-          try {
-            // Parse the result string back to JSON object
-            console.log('Trying to parse data.result:', data.result);
-            const parsedResult = JSON.parse(data.result);
-            setScreeningResult(parsedResult);
-            console.log('Parsed result object:', parsedResult);
-          } catch (parseError) {
-            console.error('Error parsing result:', parseError);
-            setScreeningResult(data.result); // Fallback to raw string
-          }
-        } else {
-          setScreeningResult(data);
-        }
+        setScreeningResult(data);
       } else {
         setErrorMsg(data.error || 'Something went wrong.');
       }
     } catch (error) {
-      console.error('Error:', error);
       setErrorMsg('Unable to connect to server.');
     }
-    
     setLoading(false);
     setInputText(''); // Clear input field after sending
   };
@@ -219,11 +184,27 @@ function App() {
             color="#0d6efd"
           />
         )}
-        {currentStep && (
+        {currentStep !== null && currentStep !== undefined && (
           <StatusBadge 
             label="Current Step" 
             value={currentStep} 
             color="#198754"
+          />
+        )}
+        {/* Show Follow-up badge if in follow_up mode */}
+        {flowType === 'follow_up' && (
+          <StatusBadge 
+            label="Follow-up" 
+            value="Active" 
+            color="#f59e42"
+          />
+        )}
+        {/* Show Red Flag badge if in red_flag mode */}
+        {flowType === 'red_flag' && (
+          <StatusBadge 
+            label="URGENT" 
+            value="Red Flag" 
+            color="#d9534f"
           />
         )}
       </div>
@@ -246,25 +227,46 @@ function App() {
         {conversationHistory.length === 0 ? (
           <p style={{ color: '#6c757d', textAlign: 'center' }}>Your conversation will appear here...</p>
         ) : (
-          conversationHistory.map((msg, index) => (
-            <div 
-              key={index} 
-              style={{
-                padding: '8px 12px',
-                margin: '8px 0',
-                borderRadius: '8px',
-                backgroundColor: msg.role === 'user' ? '#e2f0fb' : '#f0f7e6',
-                alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                maxWidth: '80%',
-                marginLeft: msg.role === 'user' ? 'auto' : '0'
-              }}
-            >
-              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                {msg.role === 'user' ? '👤 You:' : '🤖 Assistant:'}
+          conversationHistory.map((msg, index) => {
+            // Highlight urgent responses
+            const isUrgent = (flowType === 'red_flag' && msg.role === 'system') ||
+              (msg.content && (msg.content.includes('URGENT') || msg.content.includes('⚠️')));
+            let displayContent = msg.content;
+            // For system messages, extract 'response' or 'message' if content is a JSON string or object
+            if (msg.role === 'system') {
+              try {
+                let parsed = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
+                if (parsed && typeof parsed === 'object') {
+                  displayContent = parsed.response || parsed.message || JSON.stringify(parsed);
+                }
+              } catch (e) {
+                // Not JSON, use as is
+              }
+            }
+            return (
+              <div 
+                key={index} 
+                style={{
+                  padding: '8px 12px',
+                  margin: '8px 0',
+                  borderRadius: '8px',
+                  backgroundColor: isUrgent ? '#ffe5e5' : (msg.role === 'user' ? '#e2f0fb' : '#f0f7e6'),
+                  border: isUrgent ? '2px solid #d9534f' : 'none',
+                  alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                  maxWidth: '80%',
+                  marginLeft: msg.role === 'user' ? 'auto' : '0',
+                  boxShadow: isUrgent ? '0 0 8px #d9534f55' : 'none'
+                }}
+              >
+                <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                  {msg.role === 'user' ? '👤 You:' : '🤖 Pukaar:'}
+                </div>
+                <div style={{ fontWeight: isUrgent ? 'bold' : 'normal', color: isUrgent ? '#d9534f' : undefined }}>
+                  {displayContent}
+                </div>
               </div>
-              <div>{msg.content}</div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 

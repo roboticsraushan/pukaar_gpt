@@ -7,8 +7,11 @@ from models.consult_advice_model import get_consult_advice
 from functions.session_manager import SessionManager
 from functions.screening_flow import ScreeningFlow, ScreeningState
 import uuid
+from models.gemini_clients import AdviceClient
 
 screen_bp = Blueprint("screen", __name__)
+
+advice_client = AdviceClient()
 
 @screen_bp.route("/api/triage", methods=["POST"])
 def triage():
@@ -33,6 +36,42 @@ def triage():
         # Add user message to conversation history
         SessionManager.add_message_to_history(session_id, "user", user_input)
         
+        # Check for red flags first
+        red_flag_result = detect_red_flags(user_input)
+        print(f"[DEBUG] Red flag detection result: {red_flag_result}")
+        
+        if red_flag_result.get("red_flag_detected", False):
+            # Red flag detected, set flow type to red_flag
+            print(f"[DEBUG] Red flag detected in message: {user_input}")
+            SessionManager.set_flow_type(session_id, "red_flag")
+            SessionManager.add_red_flag(session_id, red_flag_result)
+            
+            # Prepare red flag response
+            response_text = f"⚠️ URGENT: {red_flag_result.get('reasoning', 'This appears to be an emergency situation.')}\n\n"
+            response_text += f"Recommendation: {red_flag_result.get('recommendation', 'Please seek immediate medical attention.')}"
+            
+            # Add system response to conversation history
+            SessionManager.add_message_to_history(session_id, "system", response_text)
+            
+            # Get updated session data
+            session_data = SessionManager.get_session(session_id)
+            flow_type = session_data.get('flow_type', 'red_flag')
+            current_step = session_data.get('current_step', 0)
+            
+            # Prepare response with session information
+            response = {
+                "result": response_text,
+                "session_id": session_id,
+                "flow_type": flow_type,
+                "current_step": current_step,
+                "response": response_text,
+                "red_flag": red_flag_result
+            }
+            
+            print(f"[DEBUG] Red flag response with session info: {response}")
+            return jsonify(response)
+        
+        # No red flags, proceed with triage
         # Set flow type to triage and advance step
         SessionManager.set_flow_type(session_id, "triage")
         current_step = SessionManager.advance_step(session_id)
@@ -191,150 +230,65 @@ def screen():
                 {"flow_type": flow_type, "metadata": metadata}
             )
         
-        # Process based on flow type
-        if flow_type == "initial":
-            # Initial flow - start triage
-            SessionManager.set_flow_type(session_id, "initial")
-            ScreeningFlow.transition_to(session_id, ScreeningState.INITIAL)
-            response["message"] = "Welcome to Pukaar-GPT. Please describe the symptoms or concerns."
-            
-        elif flow_type == "triage":
-            # Triage flow - analyze symptoms and determine next steps
-            SessionManager.set_flow_type(session_id, "triage")
-            ScreeningFlow.transition_to(session_id, ScreeningState.TRIAGE)
-            
-            # Check for red flags first
-            red_flag_result = detect_red_flags(user_message)
-            if red_flag_result["red_flag_detected"]:
-                # Red flag detected, transition to red flag state
+        # --- Always check for red flags on every message ---
+        if user_message:
+            red_flag_result = detect_red_flags(user_message) or {}
+            if red_flag_result.get("red_flag_detected", False):
                 ScreeningFlow.transition_to(session_id, ScreeningState.RED_FLAG_DETECTED)
+                SessionManager.set_flow_type(session_id, "red_flag")
                 SessionManager.add_red_flag(session_id, red_flag_result)
-                
                 response["message"] = "⚠️ URGENT: Red flag detected! Please seek immediate medical attention."
                 response["data"] = red_flag_result
-            else:
-                # No red flags, perform triage
-                triage_result = triage_with_gemini(user_message)
-                
-                # Store triage result in session
-                SessionManager.update_session(
+                SessionManager.add_message_to_history(
                     session_id,
-                    {"triage_result": triage_result}
+                    "system",
+                    response["message"],
+                    {"flow_type": "red_flag", "data": red_flag_result}
                 )
-                
-                # Transition to condition selection
-                ScreeningFlow.transition_to(session_id, ScreeningState.CONDITION_SELECTION)
-                
-                response["message"] = "Triage completed. Please select a condition to screen for."
-                response["data"] = triage_result
-        
-        elif flow_type == "screening":
-            # Screening flow - handle condition screening
-            SessionManager.set_flow_type(session_id, "screening")
-            
-            # Get condition from metadata
-            condition = metadata.get("condition", "")
-            if not condition:
-                response["success"] = False
-                response["message"] = "Condition is required for screening flow"
-                return jsonify(response), 400
-            
-            # Store selected condition
-            SessionManager.update_session(
-                session_id,
-                {"selected_condition": condition}
-            )
-            
-            # Get current state
-            current_state = ScreeningFlow.get_current_state(session_id)
-            
-            if current_state == ScreeningState.CONDITION_SELECTION:
-                # Transition to question collection
-                ScreeningFlow.transition_to(session_id, ScreeningState.QUESTION_COLLECTION)
-                
-                # Get screening questions for the condition
-                screening_info = run_screening(condition)
-                
-                response["message"] = f"Please answer the questions for {condition} screening."
-                response["data"] = screening_info
-                
-            elif current_state == ScreeningState.QUESTION_COLLECTION:
-                # Get user responses from metadata
-                user_responses = metadata.get("responses", [])
-                if not user_responses:
-                    response["success"] = False
-                    response["message"] = "Responses are required for question collection"
-                    return jsonify(response), 400
-                
-                # Check for red flags in responses
-                for resp in user_responses:
-                    red_flag_result = detect_red_flags(resp)
-                    if red_flag_result["red_flag_detected"]:
-                        # Red flag detected, transition to red flag state
-                        ScreeningFlow.transition_to(session_id, ScreeningState.RED_FLAG_DETECTED)
-                        SessionManager.add_red_flag(session_id, red_flag_result)
-                        
-                        response["message"] = "⚠️ URGENT: Red flag detected in your responses! Please seek immediate medical attention."
-                        response["data"] = red_flag_result
-                        break
-                else:
-                    # No red flags, proceed with screening
-                    ScreeningFlow.transition_to(session_id, ScreeningState.ANALYSIS)
-                    
-                    # Run screening with user responses
-                    screening_result = run_screening(condition, user_responses)
-                    
-                    # Store screening result
-                    SessionManager.set_screening_data(session_id, condition, screening_result)
-                    
-                    # Transition to recommendation
-                    ScreeningFlow.transition_to(session_id, ScreeningState.RECOMMENDATION)
-                    
-                    response["message"] = "Screening completed. Here are the results."
-                    response["data"] = screening_result
-        
-        elif flow_type == "red_flag":
-            # Red flag flow - handle red flag scenarios
-            SessionManager.set_flow_type(session_id, "red_flag")
-            ScreeningFlow.transition_to(session_id, ScreeningState.RED_FLAG_DETECTED)
-            
-            # Resume session after red flag
-            resume_result = ScreeningFlow.handle_red_flag_resume(session_id)
-            
-            response["message"] = "Red flag session resumed. Please seek immediate medical attention."
-            response["data"] = resume_result
-        
-        elif flow_type == "follow_up":
-            # Follow-up flow - handle follow-up actions
+                # Always include flow_type and current_step
+                session_data = SessionManager.get_session(session_id) or {}
+                response["flow_type"] = session_data.get("flow_type")
+                response["current_step"] = session_data.get("current_step")
+                response["nextAction"] = ScreeningFlow.get_next_action(session_id)
+                return jsonify(response)
+
+        # --- Use context classifier to determine flow type before Gemini ---
+        context_result = classify_context(user_message)
+        context_type = context_result.get("classified_context", "medical_screenable")
+        if context_type == "medical_screenable":
+            SessionManager.set_flow_type(session_id, "triage")
+            gemini_result = triage_with_gemini(user_message)
+            response["message"] = gemini_result
+            response["data"] = gemini_result
+        elif context_type == "follow_up":
             SessionManager.set_flow_type(session_id, "follow_up")
-            ScreeningFlow.transition_to(session_id, ScreeningState.FOLLOW_UP)
-            
-            # Process follow-up message
-            if user_message:
-                follow_up_result = get_consult_advice(user_message)
-                
-                # Store follow-up result
-                SessionManager.update_session(
-                    session_id,
-                    {"follow_up_result": follow_up_result}
-                )
-                
-                response["message"] = "Follow-up processed. Here is the consultation advice."
-                response["data"] = follow_up_result
-            else:
-                response["message"] = "Please provide follow-up information."
-        
-        # Add system response to conversation history
+            followup_result = triage_with_gemini(user_message)
+            response["message"] = followup_result
+            response["data"] = followup_result
+        elif context_type in ["medical_non_screenable", "non_medical", "consult"]:
+            SessionManager.set_flow_type(session_id, "consult")
+            consult_result = advice_client.get_advice("general", user_message)
+            advice_text = None
+            if isinstance(consult_result, dict):
+                advice_text = consult_result.get("advice_result", {}).get("advice")
+            response["message"] = advice_text or str(consult_result)
+            response["data"] = consult_result
+        else:
+            SessionManager.set_flow_type(session_id, "triage")
+            gemini_result = triage_with_gemini(user_message)
+            response["message"] = gemini_result
+            response["data"] = gemini_result
         SessionManager.add_message_to_history(
             session_id,
             "system",
             response["message"],
-            {"flow_type": flow_type, "data": response["data"]}
+            {"flow_type": SessionManager.get_session(session_id).get("flow_type"), "data": response["data"]}
         )
-        
-        # Get next action based on current state
+        # Always include flow_type and current_step
+        session_data = SessionManager.get_session(session_id) or {}
+        response["flow_type"] = session_data.get("flow_type")
+        response["current_step"] = session_data.get("current_step")
         response["nextAction"] = ScreeningFlow.get_next_action(session_id)
-        
         return jsonify(response)
         
     except Exception as e:

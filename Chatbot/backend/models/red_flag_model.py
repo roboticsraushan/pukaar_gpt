@@ -18,11 +18,13 @@ def detect_red_flags(user_input: str) -> dict:
         ],
         "unconsciousness": [
             "unconscious", "passed out", "not responding", "no response", "blacked out",
-            "fainted", "collapsed", "not moving", "limp", "floppy"
+            "fainted", "collapsed", "not moving", "limp", "floppy",
+            "not waking up", "not waking"
         ],
         "altered_consciousness": [
             "very sleepy", "extremely drowsy", "hard to wake", "won't wake up", 
-            "difficult to wake", "not alert", "confused", "disoriented"
+            "difficult to wake", "not alert", "confused", "disoriented",
+            "not waking up", "not waking"
         ],
         
         # Respiratory emergencies
@@ -110,18 +112,40 @@ def detect_red_flags(user_input: str) -> dict:
         ]
     }
     
-    # Check for red flags with conservative interpretation
+    # --- Refined logic to reduce false positives ---
+    # Helper: check for negation
+    def is_negated(phrase, text):
+        negations = ["not ", "no ", "never ", "none ", "without ", "wasn't ", "isn't ", "aren't ", "hasn't ", "haven't ", "didn't "]
+        for neg in negations:
+            if neg + phrase in text or phrase + " not" in text:
+                return True
+        return False
+
+    # Helper: check for duration/severity
+    def has_duration_or_severity(text):
+        duration_keywords = ["hours", "days", "for ", "since ", "last ", "over ", "more than ", "less than "]
+        for word in duration_keywords:
+            if word in text:
+                return True
+        return False
+
     detected_flags = []
-    
     for flag_type, patterns in red_flags.items():
         for pattern in patterns:
             if pattern in input_lower:
+                # For broad patterns, require duration/severity or pairing with other concerning symptoms
+                broad_patterns = ["not eating", "not feeding", "very tired", "weak", "not active", "not drinking", "no appetite", "not moving", "not responding", "not waking"]
+                if pattern in broad_patterns:
+                    if not has_duration_or_severity(input_lower):
+                        continue  # Skip if no duration/severity
+                if is_negated(pattern, input_lower):
+                    continue  # Skip if negated
                 detected_flags.append({
                     "type": flag_type,
                     "trigger": pattern,
                     "severity": "high"
                 })
-                break  # Found one pattern for this flag type, move to next
+                break
     
     # Additional clinical interpretation for imprecise language
     clinical_indicators = {
@@ -155,19 +179,15 @@ def detect_red_flags(user_input: str) -> dict:
                         })
                         break
     
-    # If red flags detected, return emergency response
+    # --- Ensure output format matches LLM ---
     if detected_flags:
-        # Sort by severity (high first)
         detected_flags.sort(key=lambda x: 0 if x["severity"] == "high" else 1)
         trigger_phrase = detected_flags[0]["trigger"]
-        
         return {
             "red_flag_detected": True,
             "trigger": trigger_phrase,
             "recommended_action": "Rush to emergency immediately"
         }
-    
-    # No red flags detected
     return {
         "red_flag_detected": False,
         "trigger": None,
