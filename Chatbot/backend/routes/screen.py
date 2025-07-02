@@ -14,14 +14,51 @@ screen_bp = Blueprint("screen", __name__)
 def triage():
     data = request.get_json()
     user_input = data.get("message", "")
+    session_id = data.get("session_id", "")
 
     if not user_input:
         return jsonify({"error": "Message is required"}), 400
 
     try:
+        # Create or get session
+        if not session_id:
+            session_id = SessionManager.create_session()
+            
+        # Get or create session data
+        session_data = SessionManager.get_session(session_id)
+        if not session_data:
+            session_id = SessionManager.create_session()
+            session_data = SessionManager.get_session(session_id)
+        
+        # Add user message to conversation history
+        SessionManager.add_message_to_history(session_id, "user", user_input)
+        
+        # Set flow type to triage and advance step
+        SessionManager.set_flow_type(session_id, "triage")
+        current_step = SessionManager.advance_step(session_id)
+        
+        # Get triage result
         result = triage_with_gemini(user_input)
-        print(f"[DEBUG] result with screen : {result}")
-        return jsonify({"result": result})
+        
+        # Add system response to conversation history
+        SessionManager.add_message_to_history(session_id, "system", result)
+        
+        # Get updated session data
+        session_data = SessionManager.get_session(session_id)
+        flow_type = session_data.get('flow_type', 'triage')
+        current_step = session_data.get('current_step', 0)
+        
+        # Prepare response with session information
+        response = {
+            "result": result,
+            "session_id": session_id,
+            "flow_type": flow_type,
+            "current_step": current_step,
+            "response": result
+        }
+        
+        print(f"[DEBUG] Triage response with session info: {response}")
+        return jsonify(response)
     except Exception as e:
         print(f"[ERROR] : {e}")
         return jsonify({"error": str(e)}), 500

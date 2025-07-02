@@ -104,6 +104,10 @@ class SessionManager:
         session_data.update(updates)
         session_data['last_active'] = time.time()
         
+        # Ensure current_step is always present
+        if 'current_step' not in session_data:
+            session_data['current_step'] = 0
+            
         if USE_REDIS:
             redis_client.setex(
                 f"session:{session_id}", 
@@ -174,17 +178,30 @@ class SessionManager:
         )
 
     @staticmethod
-    def advance_step(session_id: str) -> bool:
-        """Advance to the next step in the current flow"""
+    def advance_step(session_id: str) -> int:
+        """Advance to the next step in the current flow and return the new step number"""
         session_data = SessionManager.get_session(session_id)
         if not session_data:
-            return False
+            return -1
             
         current_step = session_data.get('current_step', 0)
-        return SessionManager.update_session(
+        new_step = current_step + 1
+        
+        success = SessionManager.update_session(
             session_id, 
-            {'current_step': current_step + 1}
+            {'current_step': new_step}
         )
+        
+        return new_step if success else -1
+
+    @staticmethod
+    def get_current_step(session_id: str) -> int:
+        """Get the current step for a session"""
+        session_data = SessionManager.get_session(session_id)
+        if not session_data:
+            return -1
+            
+        return session_data.get('current_step', 0)
 
     @staticmethod
     def set_screening_data(session_id: str, condition: str, data: Dict[str, Any]) -> bool:
