@@ -80,7 +80,7 @@ class GeminiBaseClient:
         
         while retries < MAX_RETRIES:
             try:
-                response = self.model.generate_content(prompt, timeout=timeout)
+                response = self.model.generate_content(prompt)
                 
                 if self._validate_response(response):
                     return {
@@ -103,7 +103,10 @@ class GeminiBaseClient:
                 if retries < MAX_RETRIES:
                     time.sleep(RETRY_DELAY * retries)  # Exponential backoff
         
-        return self._handle_error(last_error)
+        if last_error is not None:
+            return self._handle_error(last_error)
+        else:
+            return self._handle_error(Exception("Unknown Gemini error"))
     
     async def call_async(self, prompt: str, timeout: int = DEFAULT_TIMEOUT) -> Dict[str, Any]:
         """Asynchronous call to Gemini"""

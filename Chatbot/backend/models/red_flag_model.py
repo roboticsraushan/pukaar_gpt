@@ -179,6 +179,20 @@ def detect_red_flags(user_input: str) -> dict:
                         })
                         break
     
+    # --- Reassuring phrases to suppress false positives ---
+    reassuring_phrases = [
+        "mild", "playing normally", "no fever", "eating well", "feeding well", "active", "alert", "no breathing problem", "no distress", "no difficulty", "no pain", "no discomfort", "normal activity", "normal feeding", "normal behavior", "no vomiting", "no diarrhea", "no cough", "no cold"
+    ]
+    if any(phrase in input_lower for phrase in reassuring_phrases):
+        # Only suppress if no high-severity red flag is detected
+        detected_flags_high = [f for f in detected_flags if f["severity"] == "high"]
+        if not detected_flags_high:
+            return {
+                "red_flag_detected": False,
+                "trigger": None,
+                "recommended_action": None
+            }
+    
     # --- Ensure output format matches LLM ---
     if detected_flags:
         detected_flags.sort(key=lambda x: 0 if x["severity"] == "high" else 1)

@@ -106,10 +106,13 @@ class ContextClassifier:
                 "confidence": "high"
             }
         
-        # Check for consult/advice keywords
+        # Check for consult/advice keywords (expanded)
         consult_keywords = [
             "should i", "is it safe", "can i give", "what should i do", "advice", "consult",
-            "is it ok", "is it okay", "can my child", "can i use"
+            "is it ok", "is it okay", "can my child", "can i use", "how can i", "what can i do",
+            "tips for", "prevent", "manage", "care for", "when should i", "is it normal",
+            "is it necessary", "is it recommended", "is it possible", "is it allowed", "is it harmful",
+            "is it beneficial", "is it required", "is it important", "is it urgent", "is it dangerous"
         ]
         if any(kw in input_lower for kw in consult_keywords):
             return {
@@ -117,6 +120,16 @@ class ContextClassifier:
                 "reasoning": "Detected consult/advice intent",
                 "confidence": "high"
             }
+        
+        # Prefer consult if message is a question and not a clear screenable symptom
+        question_starts = ("how ", "what ", "when ", "should ", "is ", "can ", "could ", "would ", "do ", "does ", "did ")
+        if user_input.strip().lower().startswith(question_starts):
+            if not screenable_matches:
+                return {
+                    "classified_context": "consult",
+                    "reasoning": "Message is a question and not a clear screenable symptom",
+                    "confidence": "medium"
+                }
         
         # Determine classification based on matches
         if screenable_matches:

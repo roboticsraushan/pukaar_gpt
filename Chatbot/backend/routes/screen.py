@@ -173,6 +173,53 @@ def consult_advice():
         print(f"[ERROR] Consult advice: {e}")
         return jsonify({"error": str(e)}), 500
 
+# --- Modular handler functions for each flow ---
+def handle_triage(user_message, session_id, session):
+    result = triage_with_gemini(user_message)
+    # TODO: Add logic to check if a condition is identified and transition to screening
+    SessionManager.set_flow_type(session_id, "triage")
+    return {"message": result, "flow_type": "triage"}
+
+def handle_screening(user_message, session_id, session):
+    # TODO: Implement stepwise screening logic
+    SessionManager.set_flow_type(session_id, "screening")
+    return {"message": "Screening in progress (stub)", "flow_type": "screening"}
+
+def handle_follow_up(user_message, session_id, session):
+    result = triage_with_gemini(user_message)
+    SessionManager.set_flow_type(session_id, "follow_up")
+    return {"message": result, "flow_type": "follow_up"}
+
+def handle_consult(user_message, session_id, session):
+    result = advice_client.get_advice("general", user_message)
+    advice_text = None
+    if isinstance(result, dict):
+        advice_text = result.get("advice_result", {}).get("advice")
+    if not advice_text:
+        advice_text = str(result)
+    SessionManager.set_flow_type(session_id, "consult")
+    return {"message": advice_text, "flow_type": "consult"}
+
+def handle_developmental(user_message, session_id, session):
+    # TODO: Implement developmental concerns logic
+    SessionManager.set_flow_type(session_id, "developmental")
+    return {"message": "Developmental concerns (stub)", "flow_type": "developmental"}
+
+def handle_reassurance(user_message, session_id, session):
+    # TODO: Implement reassurance logic
+    SessionManager.set_flow_type(session_id, "reassurance")
+    return {"message": "Reassurance and home care advice (stub)", "flow_type": "reassurance"}
+
+def urgent_response(red_flag_result, session_id):
+    SessionManager.set_flow_type(session_id, "red_flag")
+    return {
+        "flow_type": "red_flag",
+        "message": red_flag_result.get("recommended_action", "URGENT: Seek emergency care immediately."),
+        "urgent": True,
+        "trigger": red_flag_result.get("trigger", "Red flag detected")
+    }
+
+# --- Main /api/screen logic ---
 @screen_bp.route("/api/screen", methods=["POST"])
 def screen():
     """
@@ -255,41 +302,25 @@ def screen():
         # --- Use context classifier to determine flow type before Gemini ---
         context_result = classify_context(user_message)
         context_type = context_result.get("classified_context", "medical_screenable")
-        if context_type == "medical_screenable":
-            SessionManager.set_flow_type(session_id, "triage")
-            gemini_result = triage_with_gemini(user_message)
-            response["message"] = gemini_result
-            response["data"] = gemini_result
-        elif context_type == "follow_up":
-            SessionManager.set_flow_type(session_id, "follow_up")
-            followup_result = triage_with_gemini(user_message)
-            response["message"] = followup_result
-            response["data"] = followup_result
-        elif context_type in ["medical_non_screenable", "non_medical", "consult"]:
-            SessionManager.set_flow_type(session_id, "consult")
-            consult_result = advice_client.get_advice("general", user_message)
-            advice_text = None
-            if isinstance(consult_result, dict):
-                advice_text = consult_result.get("advice_result", {}).get("advice")
-            response["message"] = advice_text or str(consult_result)
-            response["data"] = consult_result
+        session = SessionManager.get_session(session_id) or {}
+        flow_type = session.get("flow_type", "initial")
+        if context_type == "follow_up":
+            return handle_follow_up(user_message, session_id, session or {})
+        elif context_type == "consult":
+            return handle_consult(user_message, session_id, session or {})
+        elif context_type == "developmental":
+            return handle_developmental(user_message, session_id, session or {})
+        elif context_type == "reassurance":
+            return handle_reassurance(user_message, session_id, session or {})
+        elif context_type == "medical_screenable":
+            # If already in screening, continue; else, start screening
+            if (session or {}).get("flow_type", "initial") != "screening":
+                SessionManager.set_flow_type(session_id, "screening")
+                ScreeningFlow.transition_to(session_id, ScreeningState.CONDITION_SELECTION)
+            return handle_screening(user_message, session_id, session or {})
         else:
-            SessionManager.set_flow_type(session_id, "triage")
-            gemini_result = triage_with_gemini(user_message)
-            response["message"] = gemini_result
-            response["data"] = gemini_result
-        SessionManager.add_message_to_history(
-            session_id,
-            "system",
-            response["message"],
-            {"flow_type": SessionManager.get_session(session_id).get("flow_type"), "data": response["data"]}
-        )
-        # Always include flow_type and current_step
-        session_data = SessionManager.get_session(session_id) or {}
-        response["flow_type"] = session_data.get("flow_type")
-        response["current_step"] = session_data.get("current_step")
-        response["nextAction"] = ScreeningFlow.get_next_action(session_id)
-        return jsonify(response)
+            # Default to triage if unsure
+            return handle_triage(user_message, session_id, session or {})
         
     except Exception as e:
         print(f"[ERROR] Screen endpoint: {e}")
