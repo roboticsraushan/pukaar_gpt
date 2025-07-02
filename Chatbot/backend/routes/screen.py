@@ -181,9 +181,10 @@ def handle_triage(user_message, session_id, session):
     return {"message": result, "flow_type": "triage"}
 
 def handle_screening(user_message, session_id, session):
-    # TODO: Implement stepwise screening logic
+    # Use triage_with_gemini for screening logic
+    result = triage_with_gemini(user_message)
     SessionManager.set_flow_type(session_id, "screening")
-    return {"message": "Screening in progress (stub)", "flow_type": "screening"}
+    return {"message": result, "flow_type": "screening"}
 
 def handle_follow_up(user_message, session_id, session):
     result = triage_with_gemini(user_message)
