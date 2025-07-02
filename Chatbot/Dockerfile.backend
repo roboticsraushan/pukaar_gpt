@@ -17,6 +17,12 @@ COPY backend/req.txt .
 # Install Python dependencies (cached unless req.txt changes)
 RUN pip install --no-cache-dir -r req.txt
 
+# Install debugging tools
+RUN pip install --no-cache-dir ptvsd ipdb
+
+# In local development, we'll mount the backend directory as a volume
+# These COPY commands are only used when volume mounting isn't available
+
 # Copy the main application file
 COPY backend/app.py .
 
@@ -41,7 +47,8 @@ EXPOSE 5000
 
 # Set environment variables
 ENV FLASK_APP=app.py
-ENV FLASK_ENV=production
+ENV FLASK_ENV=development
+ENV PYTHONUNBUFFERED=1
 
 # Start the Flask application
 CMD ["python", "app.py"] 
