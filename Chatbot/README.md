@@ -1,305 +1,329 @@
-# Pukaar-GPT: AI-Powered Infant Health Screening Tool
+# Pukaar-GPT: Pediatric Healthcare Chatbot
 
-An intelligent infant health screening application that uses AI models based on WHO, IMNCI, and IAP guidelines to provide triage, red flag detection, context classification, and consultation advice.
+A comprehensive pediatric healthcare chatbot that provides triage, screening, and emergency detection for infant and child health concerns. Built with Python Flask, Google Gemini LLM, and following IMNCI/WHO/IAP clinical protocols.
 
-## 🏥 Features
+## 🚀 Features
 
-- **AI-Powered Triage**: Intelligent symptom analysis and triage recommendations
-- **Red Flag Detection**: Automatic detection of critical symptoms requiring immediate attention
-- **Context Classification**: Smart categorization of health concerns
-- **Consultation Advice**: Evidence-based recommendations for next steps
-- **WHO/IMNCI/IAP Compliant**: Based on international pediatric guidelines
-- **Modern Web Interface**: React-based frontend with intuitive UX
+- **Multi-Flow Orchestration**: Initial, Triage, Screening, Red Flag, Follow-up, Consult, Developmental, and Reassurance flows
+- **Emergency Detection**: Real-time red flag detection for life-threatening situations
+- **Clinical Protocols**: Based on IMNCI, WHO IMCI, IAP, and AIIMS guidelines
+- **Session Management**: Persistent conversation context and flow tracking
+- **LLM-Powered**: Google Gemini integration for intelligent responses
+- **Production Ready**: Docker containerization and scalable architecture
 
 ## 🏗️ Architecture
 
-- **Backend**: Flask API with Google Generative AI (Gemini) integration
-- **Frontend**: React application with modern UI/UX
-- **AI Models**: Google's Gemini for natural language processing
-- **Deployment**: Docker containerization with multi-environment support
+```
+Frontend (React) ←→ Backend (Flask) ←→ Google Gemini API
+                      ↓
+                Session Manager (Redis)
+                      ↓
+                Context Classifier
+                      ↓
+                Flow Orchestrator
+```
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Docker and Docker Compose
-- Google API Key for Gemini AI
-- Linux/macOS/Windows with Docker support
+- Google Gemini API Key
+- Redis (optional, falls back to in-memory)
 
-### 1. Environment Setup
-
-Create a `.env` file in the project root:
+### 1. Clone and Setup
 
 ```bash
-# Google API Configuration
-GOOGLE_API_KEY=your-google-api-key-here
+git clone <repository-url>
+cd pukaar_gpt/Chatbot
+```
 
-# Flask Configuration
-FLASK_APP=app.py
+### 2. Environment Configuration
+
+Create `.env` file:
+
+```bash
+# Google Gemini API
+GOOGLE_API_KEY=your_gemini_api_key_here
+
+# Redis (optional)
+REDIS_URL=redis://localhost:6379
+
+# Backend Configuration
 FLASK_ENV=production
-
-# Frontend Configuration
-REACT_APP_API_URL=http://34.47.240.92:5000
+FLASK_DEBUG=false
 ```
 
-### 2. Choose Your Deployment Method
+### 3. Production Deployment
 
-#### 🚀 **Quick Development Build** (Fastest for Recent Changes)
 ```bash
-./build_dev.sh
-```
-- ⚡ Fastest option when images are recent (< 10 minutes)
-- Skips build if recent images exist
-- Uses Docker layer caching when building
-- Perfect for frequent code changes
+# Build and start all services
+docker-compose -f docker-compose.prod.yml up -d
 
-#### 🧠 **Smart Incremental Build** (Recommended)
-```bash
-./build_incremental.sh
-```
-- 🎯 Only rebuilds changed components
-- Uses file change detection
-- 70-80% faster than full rebuilds
-- Best for development and testing
+# Check status
+docker-compose -f docker-compose.prod.yml ps
 
-#### 🏠 **Local Development** (Isolated)
-```bash
-./run_local.sh
-```
-- 🔒 Isolated from production containers
-- Uses localhost URLs
-- Safe for development without affecting production
-
-#### 🌐 **Production Deployment**
-```bash
-./run_prod.sh
-```
-- 🏭 Production-optimized configuration
-- Uses external IP addresses
-- Includes health checks and monitoring
-
-#### 📦 **Full Production Deployment**
-```bash
-./deploy.sh
-```
-- 🔧 Complete deployment with all checks
-- Comprehensive error handling
-- Production-ready with all optimizations
-
-## 🛠️ Build System
-
-### Incremental Build Features
-
-Our build system uses intelligent caching to dramatically reduce build times:
-
-#### **File Change Detection**
-- MD5 hash-based change detection
-- Only rebuilds components with actual changes
-- Tracks backend (Python) and frontend (JavaScript/React) separately
-
-#### **Docker Layer Caching**
-- Optimized Dockerfiles for maximum layer reuse
-- Separate layers for dependencies vs. source code
-- Multi-stage builds for efficient image creation
-
-#### **Build Performance**
-
-| Build Type | Time | Use Case |
-|------------|------|----------|
-| **Full Rebuild** | 3-5 minutes | Initial setup, dependency changes |
-| **Incremental** | 30s - 2 minutes | Code changes, development |
-| **Quick Dev** | 10s - 2 minutes | Recent changes, frequent development |
-
-### Build Scripts Overview
-
-| Script | Purpose | Best For |
-|--------|---------|----------|
-| `build_dev.sh` | Quick dev builds (recent images) | Daily development |
-| `build_incremental.sh` | Smart incremental builds | Testing and staging |
-| `run_local.sh` | Local development environment | Isolated development |
-| `run_prod.sh` | Production environment | Production deployment |
-| `deploy.sh` | Full production deployment | Complete deployment |
-
-### Build Speed Comparison
-
-**`build_dev.sh`** - Fastest for recent changes:
-- ⚡ **10 seconds** if images are recent (< 10 minutes old)
-- 🔄 **1-2 minutes** if images need rebuilding
-- 🎯 **Best for**: Frequent development cycles
-
-**`build_incremental.sh`** - Smartest for code changes:
-- 🧠 **30 seconds - 2 minutes** depending on what changed
-- 📊 **File change detection** - only rebuilds what's necessary
-- 🎯 **Best for**: When you've made code changes
-
-**`run_local.sh` / `run_prod.sh`** - Standard builds:
-- ⏱️ **2-3 minutes** for full build with caching
-- 🔧 **Standard Docker layer caching**
-- 🎯 **Best for**: Regular development and production
-
-## 🔧 Advanced Usage
-
-### Force Full Rebuild
-```bash
-# Remove build cache and rebuild everything
-rm .last_*_build && ./build_incremental.sh
-
-# Or use --no-cache flag
-docker-compose build --no-cache
+# View logs
+docker-compose -f docker-compose.prod.yml logs -f backend
 ```
 
-### View Logs
+### 4. Health Check
+
 ```bash
+curl http://localhost:5000/health
+```
+
+Expected response:
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-01-01T12:00:00Z",
+  "version": "1.0.0"
+}
+```
+
+## 📡 API Documentation
+
+### Single Endpoint: `/api/screen`
+
+**URL:** `POST /api/screen`
+
+**Purpose:** Main entry point for all pediatric health interactions. Automatically routes to appropriate flow based on user input.
+
+**Request Body:**
+```json
+{
+  "session_id": "optional-session-id",
+  "message": "User's health concern or question"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "AI response text",
+  "flow_type": "triage|screening|red_flag|follow_up|consult|developmental|reassurance",
+  "urgent": false,
+  "session_id": "session-id",
+  "current_step": 0,
+  "data": "additional response data"
+}
+```
+
+## 🧪 Testing Examples
+
+### 1. Initial/Triage Flow
+
+```bash
+# Vague health concern
+curl -X POST http://localhost:5000/api/screen \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "My baby is not feeling well"
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "message": "Please describe your child's specific symptoms...",
+  "flow_type": "triage",
+  "urgent": false
+}
+```
+
+### 2. Red Flag/Emergency Detection
+
+```bash
+# Emergency situation
+curl -X POST http://localhost:5000/api/screen \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "My baby is not waking up and is breathing very fast"
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "message": "⚠️ URGENT: Red flag detected! Please seek immediate medical attention.",
+  "flow_type": "red_flag",
+  "urgent": true,
+  "trigger": "not waking up and breathing very fast"
+}
+```
+
+### 3. Follow-up Flow
+
+```bash
+# Follow-up after treatment
+curl -X POST http://localhost:5000/api/screen \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "The diarrhea has not improved after 3 days of treatment"
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "message": "Persistent diarrhea after 3 days of treatment requires...",
+  "flow_type": "follow_up",
+  "urgent": false
+}
+```
+
+### 4. Consult/Advice Flow
+
+```bash
+# General health advice
+curl -X POST http://localhost:5000/api/screen \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Should I give paracetamol for fever?"
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "message": "Fever is a common symptom in children...",
+  "flow_type": "consult",
+  "urgent": false
+}
+```
+
+### 5. Non-Urgent/Reassurance
+
+```bash
+# Mild symptoms
+curl -X POST http://localhost:5000/api/screen \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "My child has a mild cold but is playing normally"
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "message": "A mild cold with normal activity is common...",
+  "flow_type": "triage",
+  "urgent": false
+}
+```
+
+### 6. Session Continuity
+
+```bash
+# First message
+curl -X POST http://localhost:5000/api/screen \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "My baby has a fever"
+  }'
+
+# Follow-up in same session
+curl -X POST http://localhost:5000/api/screen \
+  -H "Content-Type: application/json" \
+  -d '{
+    "session_id": "session-id-from-previous-response",
+    "message": "The fever is still there after giving medicine"
+  }'
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `GOOGLE_API_KEY` | Google Gemini API key | Required |
+| `REDIS_URL` | Redis connection URL | `redis://localhost:6379` |
+| `FLASK_ENV` | Flask environment | `production` |
+| `FLASK_DEBUG` | Debug mode | `false` |
+| `LOG_LEVEL` | Logging level | `INFO` |
+
+### Docker Compose Services
+
+- **backend**: Flask API server
+- **frontend**: React web interface (optional)
+- **redis**: Session storage (optional)
+
+## 🧪 Testing
+
+### Automated Test Suite
+
+```bash
+# Run comprehensive test suite
+python3 test_frontend_flows.py
+
+# Generate test cases
+python3 generate_large_test_csv.py
+
+# Run with custom test file
+python3 test_frontend_flows.py --csv-file my_test_cases.csv
+```
+
+### Manual Testing
+
+```bash
+# Health check
+curl http://localhost:5000/health
+
+# Test each flow type
+./test_flows.sh
+```
+
+## 📊 Monitoring
+
+### Health Endpoints
+
+```bash
+# Basic health
+curl http://localhost:5000/health
+
+# Detailed health
+curl http://localhost:5000/health/detailed
+
+# Metrics
+curl http://localhost:5000/metrics
+```
+
+### Logs
+
+```bash
+# View backend logs
+docker-compose -f docker-compose.prod.yml logs -f backend
+
 # View all logs
-docker-compose logs -f
-
-# View specific service logs
-docker-compose logs -f backend
-docker-compose logs -f frontend
-```
-
-### Container Management
-```bash
-# Stop all services
-docker-compose down
-
-# Stop and remove volumes
-docker-compose down -v
-
-# Rebuild specific service
-docker-compose build backend
-docker-compose build frontend
-```
-
-### Environment-Specific Commands
-
-#### Local Development
-```bash
-# Start local environment
-./run_local.sh
-
-# View local logs
-docker-compose -f docker-compose.local.yml -p pukaar-local logs -f
-
-# Stop local environment
-docker-compose -f docker-compose.local.yml -p pukaar-local down
-```
-
-#### Production
-```bash
-# Start production environment
-./run_prod.sh
-
-# View production logs
 docker-compose -f docker-compose.prod.yml logs -f
-
-# Stop production environment
-docker-compose -f docker-compose.prod.yml down
 ```
 
-## 📁 Project Structure
+## 🔒 Security
 
-```
-Pukaar-GPT/
-├── backend/                 # Flask API backend
-│   ├── app.py              # Main Flask application
-│   ├── models.py           # AI model integrations
-│   ├── utils.py            # Utility functions
-│   ├── config.py           # Configuration management
-│   ├── req.txt             # Python dependencies
-│   └── templates/          # API documentation templates
-├── frontend/               # React frontend
-│   ├── src/                # React source code
-│   ├── public/             # Static assets
-│   └── package.json        # Node.js dependencies
-├── docker-compose.yml      # Main Docker Compose configuration
-├── docker-compose.prod.yml # Production configuration
-├── docker-compose.local.yml # Local development configuration
-├── Dockerfile.backend      # Backend container definition
-├── Dockerfile.frontend     # Frontend container definition
-├── .dockerignore           # Docker build exclusions
-├── .env                    # Environment variables (create this)
-├── build_incremental.sh    # Smart incremental build script
-├── build_dev.sh           # Quick development build script
-├── run_local.sh           # Local development runner
-├── run_prod.sh            # Production runner
-├── deploy.sh              # Full deployment script
-└── README.md              # This file
-```
+- **API Key Management**: Store `GOOGLE_API_KEY` securely
+- **Input Validation**: All user inputs are validated and sanitized
+- **Rate Limiting**: Implement rate limiting for production
+- **HTTPS**: Use HTTPS in production environments
 
-## 🔑 Environment Variables
+## 🚨 Emergency Protocols
 
-### Required
-- `GOOGLE_API_KEY`: Your Google API key for Gemini AI access
+The system follows validated clinical protocols:
 
-### Optional
-- `FLASK_ENV`: Environment mode (development/production)
-- `REACT_APP_API_URL`: Frontend API endpoint URL
+- **IMNCI Guidelines**: Integrated Management of Neonatal and Childhood Illnesses
+- **WHO IMCI**: World Health Organization guidelines
+- **IAP Protocols**: Indian Academy of Pediatrics standards
+- **AIIMS Guidelines**: All India Institute of Medical Sciences protocols
 
-## 🌐 API Endpoints
+## 📝 License
 
-- **Frontend**: http://localhost:3000 (local) / http://34.47.240.92:3000 (production)
-- **Backend API**: http://localhost:5000 (local) / http://34.47.240.92:5000 (production)
-- **API Documentation**: http://localhost:5000/api-doc (local) / http://34.47.240.92:5000/api-doc (production)
-
-## 🚨 Troubleshooting
-
-### Common Issues
-
-#### Build Failures
-```bash
-# Clean Docker cache
-docker system prune -f
-
-# Force rebuild
-docker-compose build --no-cache
-```
-
-#### Container Issues
-```bash
-# Check container status
-docker-compose ps
-
-# View detailed logs
-docker-compose logs [service-name]
-```
-
-#### Disk Space Issues
-```bash
-# Clean up Docker resources
-docker system prune -a -f
-
-# Check disk usage
-df -h
-```
-
-### Performance Optimization
-
-1. **Use incremental builds** for development
-2. **Clean Docker cache** regularly
-3. **Monitor disk space** during builds
-4. **Use appropriate build script** for your use case
+[Your License Here]
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test with incremental builds
-5. Submit a pull request
+[Contributing Guidelines]
 
-## 📄 License
+## 📞 Support
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Support
-
-For issues and questions:
-1. Check the troubleshooting section
-2. Review the API documentation
-3. Check container logs for errors
-4. Ensure environment variables are properly set
-
----
-
-**Pukaar-GPT**: Empowering healthcare providers with AI-driven infant health screening.
+For technical support or clinical questions, contact: [Your Contact Information]

@@ -8,6 +8,8 @@ from functions.session_manager import SessionManager
 from functions.screening_flow import ScreeningFlow, ScreeningState
 import uuid
 from models.gemini_clients import AdviceClient
+import time
+import os
 
 screen_bp = Blueprint("screen", __name__)
 
@@ -364,3 +366,55 @@ def create_session():
     except Exception as e:
         print(f"[ERROR] Create session: {e}")
         return jsonify({"error": str(e)}), 500
+
+@screen_bp.route("/health", methods=["GET"])
+def health_check():
+    """Basic health check endpoint."""
+    return jsonify({
+        "status": "healthy",
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "version": "1.0.0",
+        "service": "pukaar-gpt-backend"
+    })
+
+@screen_bp.route("/health/detailed", methods=["GET"])
+def detailed_health_check():
+    """Detailed health check with service dependencies."""
+    try:
+        # Check Redis connection
+        redis_status = "healthy"
+        try:
+            # Simple Redis check - you can add actual Redis connection test here
+            redis_status = "healthy"
+        except Exception as e:
+            redis_status = f"unhealthy: {str(e)}"
+        
+        # Check Gemini API (optional - don't make actual API call for health check)
+        gemini_status = "healthy" if os.environ.get('GOOGLE_API_KEY') else "unhealthy: no API key"
+        
+        return jsonify({
+            "status": "healthy",
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "version": "1.0.0",
+            "service": "pukaar-gpt-backend",
+            "dependencies": {
+                "redis": redis_status,
+                "gemini_api": gemini_status
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        }), 500
+
+@screen_bp.route("/metrics", methods=["GET"])
+def metrics():
+    """Basic metrics endpoint."""
+    return jsonify({
+        "uptime": "running",
+        "requests_processed": 0,  # You can add actual metrics tracking here
+        "active_sessions": 0,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    })

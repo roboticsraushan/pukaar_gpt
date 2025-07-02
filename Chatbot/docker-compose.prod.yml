@@ -1,31 +1,131 @@
 version: '3.8'
+
 services:
   backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    container_name: pukaar-backend
+    container_name: pukaar-backend-prod
+    restart: unless-stopped
     ports:
       - "5000:5000"
-    working_dir: /app
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=false
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     env_file:
       - .env
-    environment:
-      - FLASK_APP=app.py
-      - FLASK_ENV=production
-    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - pukaar-network
+    volumes:
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
 
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    container_name: pukaar-frontend
+    container_name: pukaar-frontend-prod
+    restart: unless-stopped
     ports:
       - "3000:3000"
-    depends_on:
-      - backend
+    environment:
+      - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:5000}
+      - NODE_ENV=production
     env_file:
       - .env
-    environment:
-      - REACT_APP_API_URL=http://34.47.240.92:5000
-    restart: unless-stopped 
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - pukaar-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+  redis:
+    image: redis:7-alpine
+    container_name: pukaar-redis-prod
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - pukaar-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.1'
+        reservations:
+          memory: 128M
+          cpus: '0.05'
+
+  nginx:
+    image: nginx:alpine
+    container_name: pukaar-nginx-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - pukaar-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  pukaar-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16 
