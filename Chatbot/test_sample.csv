@@ -1,0 +1,10 @@
+description,message,expected_flow_type,expect_urgent
+Follow_up case 1,My child is still vomiting after the last visit.,follow_up,False
+Follow_up case 2,The cold has not improved after 12 days of treatment.,follow_up,False
+Follow_up case 3,"We finished the medicine, but my baby is still crying.",follow_up,False
+Follow_up case 4,"We were told to return if cold persisted, and it has.",follow_up,False
+Follow_up case 5,The sneezing has not improved after 1 days of treatment.,follow_up,False
+Follow_up case 6,Symptoms have not resolved after 5 days of antibiotics.,follow_up,False
+Follow_up case 7,We were told to come back for a checkup after 1 days.,follow_up,False
+Follow_up case 8,"My child was given ibuprofen, but the cold is still there.",follow_up,False
+Follow_up case 9,We were told to come back for a checkup after 14 days.,follow_up,False
