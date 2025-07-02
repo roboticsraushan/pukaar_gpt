@@ -1,12 +1,46 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, session
 from routes.screen import screen_bp
 from routes.follow_up import follow_up_bp
 from flask_cors import CORS
+from flask_session import Session
 import markdown
 import os
+import redis
 
 app = Flask(__name__)
 CORS(app)
+
+# Configure Flask-Session with Redis
+app.config['SESSION_TYPE'] = 'redis'
+app.config['SESSION_PERMANENT'] = True
+app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_KEY_PREFIX'] = 'pukaar:'
+app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 hours in seconds
+
+# Set up Redis connection
+redis_host = os.environ.get('REDIS_HOST', 'localhost')
+redis_port = int(os.environ.get('REDIS_PORT', 6379))
+redis_password = os.environ.get('REDIS_PASSWORD', None)
+redis_db = int(os.environ.get('REDIS_DB', 0))
+
+try:
+    redis_client = redis.Redis(
+        host=redis_host,
+        port=redis_port,
+        password=redis_password,
+        db=redis_db
+    )
+    redis_client.ping()  # Test connection
+    print(f"[INFO] Connected to Redis at {redis_host}:{redis_port}")
+    app.config['SESSION_REDIS'] = redis_client
+except Exception as e:
+    print(f"[WARNING] Redis connection failed: {e}. Using filesystem session.")
+    app.config['SESSION_TYPE'] = 'filesystem'
+    app.config['SESSION_FILE_DIR'] = '/tmp/pukaar_sessions'
+    os.makedirs(app.config['SESSION_FILE_DIR'], exist_ok=True)
+
+# Initialize Flask-Session
+Session(app)
 
 # Register blueprints
 app.register_blueprint(screen_bp)
@@ -72,6 +106,24 @@ def api_documentation():
         </body>
         </html>
         ''', 500
+
+@app.route('/api/health')
+def health_check():
+    """Health check endpoint"""
+    try:
+        # Check Redis connection
+        redis_status = "Connected" if app.config['SESSION_TYPE'] == 'redis' and app.config['SESSION_REDIS'].ping() else "Not connected"
+        
+        return {
+            "status": "healthy",
+            "redis": redis_status,
+            "session_type": app.config['SESSION_TYPE']
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e)
+        }, 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

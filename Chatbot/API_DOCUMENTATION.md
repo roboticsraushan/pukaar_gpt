@@ -12,7 +12,117 @@ http://34.47.240.92:3000
 
 ## API Endpoints
 
-### 1. Health Screening Triage
+### 1. Main Screening Endpoint with Session Management
+**Endpoint:** `POST /api/screen`
+
+**Description:** Main endpoint for the screening process with session management. Handles different flow types and maintains conversation state.
+
+**Request Headers:**
+```
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "message": "My baby has fast breathing and yellow skin",
+  "flowType": "initial|triage|screening|red_flag|follow_up",
+  "sessionId": "optional-session-id",
+  "metadata": {
+    "condition": "optional condition name",
+    "responses": ["optional user responses"],
+    "additional_data": {}
+  }
+}
+```
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "message": "Triage completed. Please select a condition to screen for.",
+  "data": {
+    "pneumonia_ari": 75,
+    "neonatal_jaundice": 85,
+    "screenable": true,
+    "response": "Fast breathing and yellow skin detected. This could indicate respiratory issues or jaundice."
+  },
+  "sessionId": "12345678-1234-5678-1234-567812345678",
+  "nextAction": {
+    "action": "select_condition",
+    "message": "Please select a condition to screen for"
+  }
+}
+```
+
+### 2. Create Session
+**Endpoint:** `POST /api/session`
+
+**Description:** Creates a new session and returns the session ID.
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "sessionId": "12345678-1234-5678-1234-567812345678"
+}
+```
+
+### 3. Get Session Data
+**Endpoint:** `GET /api/session/{session_id}`
+
+**Description:** Retrieves session data for the specified session ID.
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "session": {
+    "id": "12345678-1234-5678-1234-567812345678",
+    "created_at": 1625097600,
+    "last_active": 1625097650,
+    "flow_type": "triage",
+    "current_step": 1,
+    "conversation_history": [...],
+    "screening_data": {...},
+    "red_flags": [],
+    "metadata": {}
+  }
+}
+```
+
+### 4. Get Session History
+**Endpoint:** `GET /api/session/{session_id}/history`
+
+**Description:** Retrieves conversation history for the specified session ID.
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "history": [
+    {
+      "role": "user",
+      "content": "My baby has fast breathing and yellow skin",
+      "timestamp": 1625097600,
+      "metadata": {
+        "flow_type": "initial"
+      }
+    },
+    {
+      "role": "system",
+      "content": "I've analyzed the symptoms. Fast breathing and yellow skin could indicate respiratory issues or jaundice.",
+      "timestamp": 1625097610,
+      "metadata": {
+        "flow_type": "triage",
+        "data": {...}
+      }
+    }
+  ]
+}
+```
+
+### 5. Health Screening Triage
 **Endpoint:** `POST /api/triage`
 
 **Description:** Analyzes infant symptoms and provides health screening results using IMNCI/WHO/IAP guidelines.
@@ -36,7 +146,7 @@ Content-Type: application/json
 }
 ```
 
-### 2. Red Flag Detection
+### 6. Red Flag Detection
 **Endpoint:** `POST /api/red-flag`
 
 **Description:** Detects medical emergency red flags in infant symptoms using conservative clinical interpretation.
@@ -66,7 +176,7 @@ Content-Type: application/json
 }
 ```
 
-### 3. Context Classification
+### 7. Context Classification
 **Endpoint:** `POST /api/context-classifier`
 
 **Description:** Classifies user input into medical_screenable, medical_non_screenable, or non_medical contexts.
@@ -91,7 +201,7 @@ Content-Type: application/json
 ```
 
 
-### 4. Run Screening
+### 8. Run Screening
 **Endpoint:** `POST /api/screening/<condition>/run`
 
 **Description:** Run screening for a specific condition with user responses.
@@ -115,7 +225,7 @@ Content-Type: application/json
 }
 ```
 
-### 5. Consult Advice
+### 9. Consult Advice
 **Endpoint:** `POST /api/consult-advice`
 
 **Description:** Provides parenting guidance for non-clinical issues and offers expert consultation.
@@ -148,15 +258,50 @@ Content-Type: application/json
 }
 ```
 
+### 10. Health Check
+**Endpoint:** `GET /api/health`
 
+**Description:** Checks the health of the application and its dependencies.
 
-
+**Response Format:**
+```json
+{
+  "status": "healthy",
+  "redis": "Connected",
+  "session_type": "redis"
+}
+```
 
 ## Testing Examples
 
 ### cURL Commands
 
-#### 1. Test Health Screening
+#### 1. Test Main Screening Endpoint
+```bash
+curl -X POST http://34.47.240.92:5000/api/screen \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "My baby has fast breathing and yellow skin",
+    "flowType": "triage"
+  }'
+```
+
+#### 2. Create a New Session
+```bash
+curl -X POST http://34.47.240.92:5000/api/session
+```
+
+#### 3. Get Session Data
+```bash
+curl -X GET http://34.47.240.92:5000/api/session/12345678-1234-5678-1234-567812345678
+```
+
+#### 4. Get Session History
+```bash
+curl -X GET http://34.47.240.92:5000/api/session/12345678-1234-5678-1234-567812345678/history
+```
+
+#### 5. Test Health Screening
 ```bash
 curl -X POST http://34.47.240.92:5000/api/triage \
   -H "Content-Type: application/json" \
@@ -165,7 +310,7 @@ curl -X POST http://34.47.240.92:5000/api/triage \
   }'
 ```
 
-#### 2. Test Red Flag Detection
+#### 6. Test Red Flag Detection
 ```bash
 curl -X POST http://34.47.240.92:5000/api/red-flag \
   -H "Content-Type: application/json" \
@@ -174,7 +319,7 @@ curl -X POST http://34.47.240.92:5000/api/red-flag \
   }'
 ```
 
-#### 3. Test Context Classification
+#### 7. Test Context Classification
 ```bash
 curl -X POST http://34.47.240.92:5000/api/context-classifier \
   -H "Content-Type: application/json" \
@@ -183,7 +328,7 @@ curl -X POST http://34.47.240.92:5000/api/context-classifier \
   }'
 ```
 
-#### 4. Test Run Screening
+#### 8. Test Run Screening
 ```bash
 curl -X POST http://34.47.240.92:5000/api/screening/pneumonia_ari/run \
   -H "Content-Type: application/json" \
@@ -192,12 +337,17 @@ curl -X POST http://34.47.240.92:5000/api/screening/pneumonia_ari/run \
   }'
 ```
 
-#### 5. Test Consult Advice
+#### 9. Test Consult Advice
 ```bash
 curl -X POST http://34.47.240.92:5000/api/consult-advice \
   -H "Content-Type: application/json" \
   -d '{
     "message": "My baby won't sleep through the night"
   }'
+```
+
+#### 10. Test Health Check
+```bash
+curl -X GET http://34.47.240.92:5000/api/health
 ```
 
