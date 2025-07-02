@@ -1,5 +1,6 @@
 # Screening agent for infant health conditions using IMNCI/WHO/IAP observational criteria
 from .red_flag_model import detect_red_flags
+from .enhanced_screening_model import run_enhanced_screening
 
 class ScreeningAgent:
     def __init__(self):
@@ -75,6 +76,9 @@ class ScreeningAgent:
                 ]
             }
         }
+        
+        # Enhanced screening mode flag
+        self.use_enhanced_screening = True
     
     def get_condition_info(self, condition_key):
         """Get information about a specific condition."""
@@ -92,7 +96,7 @@ class ScreeningAgent:
         return detect_red_flags(user_response)
     
     def calculate_confidence_score(self, condition_key, responses):
-        """Calculate confidence score based on responses."""
+        """Calculate confidence score based on responses (legacy method)."""
         # This is a simplified scoring system
         # In a real implementation, this would use more sophisticated logic
         condition = self.get_condition_info(condition_key)
@@ -117,13 +121,42 @@ class ScreeningAgent:
         return min(confidence, 100)  # Cap at 100%
     
     def get_recommended_action(self, confidence_score):
-        """Get recommended action based on confidence score."""
+        """Get recommended action based on confidence score (legacy method)."""
         if confidence_score >= 70:
             return "Please consult a pediatrician immediately."
         elif confidence_score >= 40:
             return "Please consult a pediatrician soon."
         else:
             return "Please consult a pediatrician for routine check-up."
+    
+    def extract_age_from_responses(self, responses):
+        """Extract age information from responses."""
+        import re
+        
+        for response in responses:
+            # Look for age patterns
+            age_patterns = [
+                r'(\d+)\s*days?\s*old',
+                r'age\s*(\d+)\s*days',
+                r'(\d+)\s*days?\s*of\s*age',
+                r'(\d+)\s*weeks?\s*old',
+                r'(\d+)\s*months?\s*old'
+            ]
+            
+            for pattern in age_patterns:
+                match = re.search(pattern, response.lower())
+                if match:
+                    age_value = int(match.group(1))
+                    
+                    # Convert weeks/months to days if needed
+                    if "weeks" in pattern:
+                        age_value *= 7
+                    elif "months" in pattern:
+                        age_value *= 30
+                    
+                    return age_value
+        
+        return None  # Age not found
     
     def screen_condition(self, condition_key, user_responses):
         """Screen a specific condition and return results."""
@@ -149,10 +182,29 @@ class ScreeningAgent:
                 "condition_screened": condition["name"]
             }
         
-        # Calculate confidence score
-        confidence_score = self.calculate_confidence_score(condition_key, user_responses)
+        # Use enhanced screening if enabled
+        if self.use_enhanced_screening:
+            try:
+                # Extract age from responses
+                age_days = self.extract_age_from_responses(user_responses)
+                
+                # Run enhanced screening
+                enhanced_result = run_enhanced_screening(condition_key, user_responses, age_days)
+                
+                # Add legacy compatibility fields
+                enhanced_result["confidence_score"] = enhanced_result.get("percentage_score", 0)
+                enhanced_result["likelihood"] = "likely" if enhanced_result.get("percentage_score", 0) >= 50 else "unlikely"
+                enhanced_result["disclaimer"] = "This is a screening result based on IMNCI/WHO/IAP standards and not a medical diagnosis."
+                
+                return enhanced_result
+                
+            except Exception as e:
+                # Fallback to legacy screening if enhanced screening fails
+                print(f"Enhanced screening failed, falling back to legacy: {e}")
+                self.use_enhanced_screening = False
         
-        # Determine likelihood
+        # Legacy screening logic (fallback)
+        confidence_score = self.calculate_confidence_score(condition_key, user_responses)
         likelihood = "likely" if confidence_score >= 50 else "unlikely"
         
         return {
@@ -161,7 +213,8 @@ class ScreeningAgent:
             "likelihood": likelihood,
             "recommended_action": self.get_recommended_action(confidence_score),
             "disclaimer": "This is a screening result based on IMNCI/WHO/IAP standards and not a medical diagnosis.",
-            "red_flag_detected": False
+            "red_flag_detected": False,
+            "algorithm_version": "legacy_1.0"
         }
 
 # Global screening agent instance
@@ -194,8 +247,8 @@ if __name__ == "__main__":
     print(result)
     
     # Test screening with responses
-    print("\n=== Testing Screening ===")
-    test_responses = ["yes", "no", "yes", "yes", "65", "yes", "yes"]
+    print("\n=== Testing Enhanced Screening ===")
+    test_responses = ["65 breaths per minute", "moderate chest indrawing", "frequent grunting", "no cyanosis", "poor feeding", "baby is 45 days old"]
     result = run_screening("pneumonia_ari", test_responses)
     print(result)
 
